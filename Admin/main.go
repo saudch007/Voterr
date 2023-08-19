@@ -26,8 +26,9 @@ func adminHandler(w http.ResponseWriter, r *http.Request) {
 	adminPass := os.Getenv("ADMIN_PASS")
 
 	var requestData struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email         string `json:"email"`
+		Password      string `json:"password"`
+		CandidateName string `json:"name"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&requestData)
@@ -39,12 +40,27 @@ func adminHandler(w http.ResponseWriter, r *http.Request) {
 	recievedEmail := requestData.Email
 	recievedPassword := requestData.Password
 
+	candidateName := requestData.CandidateName
+
 	if recievedEmail == adminEmail && recievedPassword == adminPass {
 		const successMsg string = "Welcome Admin"
 		err := json.NewEncoder(w).Encode(successMsg)
 		if err != nil {
 			fmt.Println("Error in writing json")
 		}
+
+		// setting contestent and sending to another microservice
+
+		const settingName string = "Candidate's name sent"
+		er := json.NewEncoder(w).Encode(settingName)
+		if er != nil {
+			fmt.Println("Error in writing json")
+		}
+
+		// redirection to voting arena
+		redirectURL := fmt.Sprintf("http://localhost:5000/votingArena?name=%s", candidateName)
+		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+
 	} else {
 		const failureMsg string = "Either email or password is not correct"
 		err := json.NewEncoder(w).Encode(failureMsg)
