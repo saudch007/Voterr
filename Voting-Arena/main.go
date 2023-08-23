@@ -12,6 +12,8 @@ import (
 
 func votingHandler(w http.ResponseWriter, r *http.Request) {
 
+	fmt.Println("In voting arena")
+
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -36,8 +38,13 @@ func votingHandler(w http.ResponseWriter, r *http.Request) {
 	name := requestData.CandidateName
 	votes := strconv.Itoa(requestData.Votes)
 
-	var candidateData = []string{name, votes}
-	fmt.Println(candidateData)
+	candidateData := make(map[string]string)
+	candidateData[name] = votes
+
+	for key, value := range candidateData {
+
+		fmt.Printf("Key is %v and values is %v\n", key, value)
+	}
 
 }
 
