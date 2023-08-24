@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
+	supa "github.com/nedpals/supabase-go"
 )
 
 func adminHandler(w http.ResponseWriter, r *http.Request) {
@@ -25,52 +26,66 @@ func adminHandler(w http.ResponseWriter, r *http.Request) {
 	adminEmail := os.Getenv("ADMIN_EMAIL")
 	adminPass := os.Getenv("ADMIN_PASS")
 
-	var requestData struct {
-		Email         string `json:"email"`
-		Password      string `json:"password"`
-		CandidateName string `json:"name"`
+	var ValidateAdmin struct {
+		AdEmail string `json:"email"`
+		AdPass  string `json:"pass"`
+		// voting creds
+		CandidateNameReq string `json:"cnamereq"`
+		VotesReq         int    `json:"votesreq"`
 	}
 
-	err := json.NewDecoder(r.Body).Decode(&requestData)
+	err := json.NewDecoder(r.Body).Decode(&ValidateAdmin)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		log.Printf("Error is %s", err)
 	}
 
-	recievedEmail := requestData.Email
-	recievedPassword := requestData.Password
+	// checking email and pass
 
-	candidateName := requestData.CandidateName
+	if adminEmail == ValidateAdmin.AdEmail && adminPass == ValidateAdmin.AdPass {
 
-	if recievedEmail == adminEmail && recievedPassword == adminPass {
-		const successMsg string = "Welcome Admin"
-		err := json.NewEncoder(w).Encode(successMsg)
+		var BalletBox struct {
+			CandidateName string `json:"cname"`
+			Votes         int    `json:"votes"`
+		}
+
+		// Passed Candidate name and vote from user and extracted from request
+		BalletBox.CandidateName = ValidateAdmin.CandidateNameReq
+		BalletBox.Votes = ValidateAdmin.VotesReq
+
+		Name := ValidateAdmin.CandidateNameReq
+		NVotes := ValidateAdmin.VotesReq
+
+		fmt.Printf("Candidate name: %s and Candidate votes %d", Name, NVotes)
+
+		// creating a table and pushing the name of candidate and votes in supabase
+
+		type Candidate struct {
+			Name  string `json:"name"`
+			Votes int    `json:"votes"`
+		}
+		candidates := []Candidate{
+			{Name, NVotes},
+		}
+
+		// all set now candidates object is to be pushed in table in supabase
+		supabaseURL := os.Getenv("DB_URL")
+		supabaseKEY := os.Getenv("DB_KEY")
+		supabase := supa.CreateClient(supabaseURL, supabaseKEY)
+
+		var results []Candidate
+
+		err := supabase.DB.From("ballettable").Insert(candidates).Execute(&results)
 		if err != nil {
-			fmt.Println("Error in writing json")
+			log.Fatalf("Error is %s", err)
+		} else {
+			fmt.Println(results)
 		}
-
-		// setting contestent and sending to another microservice
-
-		const settingName string = "Candidate's name sent"
-		er := json.NewEncoder(w).Encode(settingName)
-		if er != nil {
-			fmt.Println("Error in writing json")
-		}
-
-		// redirection to voting arena
-		redirectURL := fmt.Sprintf("http://localhost:5000/votingArena?name=%s", candidateName)
-		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 
 	} else {
-		const failureMsg string = "Either email or password is not correct"
-		err := json.NewEncoder(w).Encode(failureMsg)
-		if err != nil {
-			fmt.Println("Error in writing json")
-		}
-		fmt.Println("Redirecting to sign up")
-		http.Redirect(w, r, "http://localhost:8000/signup", http.StatusSeeOther)
-	}
 
+		var FailureMsg string = "Email or password is not correct"
+		json.NewEncoder(w).Encode(FailureMsg)
+	}
 }
 
 func main() {
