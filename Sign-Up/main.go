@@ -60,7 +60,9 @@ func signUpHandler(w http.ResponseWriter, r *http.Request) {
 			Password: Password,
 		})
 		if err != nil {
-			panic(err)
+			log.Printf("Error signing up: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
 		} else {
 			fmt.Println(user)
 
