@@ -1,11 +1,55 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
+
+	"github.com/joho/godotenv"
+	supa "github.com/nedpals/supabase-go"
 )
 
 func votingHandler(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+
+	}
+
+	e := godotenv.Load("../.env")
+	if e != nil {
+		log.Fatalf("Error loading .env file: %v", e)
+	}
+
+	// Fetching and showing Ballet Box Table
+	supabaseUrl := os.Getenv("DB_URL")
+	supabaseKey := os.Getenv("DB_KEY")
+	supabase := supa.CreateClient(supabaseUrl, supabaseKey)
+
+	var results []map[string]interface{}
+	err := supabase.DB.From("ballettable").Select("*").Execute(&results)
+
+	if err != nil {
+		fmt.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+		log.Println(err)
+		return
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		err := json.NewEncoder(w).Encode(&results)
+		if err != nil {
+			fmt.Println(err)
+
+		}
+
+	}
+
+	fmt.Println(results) // Selected rows
 
 }
 

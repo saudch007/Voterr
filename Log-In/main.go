@@ -121,7 +121,7 @@ func signInHandler(w http.ResponseWriter, r *http.Request) {
 			Password: Pass,
 		})
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
 		} else {
 			fmt.Println(user)
 
