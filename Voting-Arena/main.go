@@ -11,19 +11,8 @@ import (
 	supa "github.com/nedpals/supabase-go"
 )
 
-func votingHandler(w http.ResponseWriter, r *http.Request) {
-
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-
-	}
-
-	e := godotenv.Load("../.env")
-	if e != nil {
-		log.Fatalf("Error loading .env file: %v", e)
-	}
-
+// putting getTable in a function to update it incase of changes
+func getTable(w http.ResponseWriter, r *http.Request) {
 	// Fetching and showing Ballet Box Table
 	supabaseUrl := os.Getenv("DB_URL")
 	supabaseKey := os.Getenv("DB_KEY")
@@ -50,6 +39,22 @@ func votingHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Println(results) // Selected rows
+}
+
+func votingHandler(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+
+	}
+
+	e := godotenv.Load("../.env")
+	if e != nil {
+		log.Fatalf("Error loading .env file: %v", e)
+	}
+
+	getTable(w, r)
 
 }
 
