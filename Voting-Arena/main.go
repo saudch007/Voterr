@@ -9,7 +9,63 @@ import (
 
 	"github.com/joho/godotenv"
 	supa "github.com/nedpals/supabase-go"
+	"github.com/streadway/amqp"
 )
+
+// message sender
+func sendToVoteService(candidateName string, candidateVote int) error {
+
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/") // Update with your RabbitMQ connection details
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		return err
+	}
+	defer ch.Close()
+
+	q, err := ch.QueueDeclare(
+		"candidate_queue", // Queue name
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
+	message := map[string]interface{}{
+		"candidate_name":  candidateName,
+		"candidate_votes": candidateVote,
+	}
+
+	messageJSON, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
+
+	err = ch.Publish(
+		"",     // Exchange
+		q.Name, // Routing key
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        messageJSON,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Candidate data sent to RabbitMQ")
+	return nil
+}
 
 // putting getTable in a function to update it incase of changes
 func getTable(w http.ResponseWriter, r *http.Request) {
@@ -55,6 +111,31 @@ func votingHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	getTable(w, r)
+	var candidate_name string
+	var candidate_votes int
+
+	fmt.Printf("Candidate name?:\n")
+	_, err := fmt.Scan(&candidate_name)
+	if err != nil {
+		fmt.Println("Error reading input:", err)
+		return
+	}
+
+	fmt.Printf("Candidate votes?:\n")
+	_, errVal := fmt.Scan(&candidate_votes)
+	if errVal != nil {
+		fmt.Println("Error reading input:", err)
+		return
+	}
+
+	fmt.Println("Candidate name is :", candidate_name)
+	fmt.Println("Candidate vote is :", candidate_votes)
+
+	err = sendToVoteService(candidate_name, candidate_votes) // Sending to Vote-Service
+	if err != nil {
+		fmt.Println("Error sending data to Vote-Service", err)
+		return
+	}
 
 }
 
