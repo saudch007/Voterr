@@ -5,14 +5,64 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/joho/godotenv"
+	supa "github.com/nedpals/supabase-go"
 	"github.com/streadway/amqp"
 )
 
-type CandidateData struct {
+type CandidateData struct { // storing values in custom type
 	CandidateName  string `json:"candidate_name"`
 	CandidateVotes int    `json:"candidate_votes"`
+}
+
+func updateVotes(passedName string, passedVote int) {
+
+	type Candidate struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+		Vote int    `json:"votes"`
+		// Add other fields as needed
+	}
+
+	supabaseURL := os.Getenv("DB_URL")
+	supabaseKEY := os.Getenv("DB_KEY")
+	supabase := supa.CreateClient(supabaseURL, supabaseKEY)
+
+	// Fetch the existing row based on the name
+	var existingRow Candidate
+
+	fetchResponse := supabase.DB.From("ballettable").
+		Select("*").
+		Eq("name", passedName).
+		Execute(&existingRow)
+
+	if fetchResponse != nil {
+		// Increase the vote attribute in the existing row
+		existingRow.Vote += 1
+		fmt.Println("Vote increased by 1")
+		fmt.Println(existingRow)
+
+		// Update the row in the database
+		updateResponse := supabase.DB.From("ballettable").
+			Update(existingRow).
+			Eq("name", passedName).
+			Execute(nil)
+
+		if updateResponse != nil {
+			log.Println("Msg:", updateResponse)
+			return
+		}
+
+		if updateResponse.Error() == "200" {
+			fmt.Println("Vote increased successfully.")
+		} else {
+			fmt.Println("Vote increase failed.")
+		}
+	} else {
+		fmt.Println("Row not found.")
+	}
 }
 
 func consumer() {
@@ -59,7 +109,7 @@ func consumer() {
 	for msg := range msgs {
 		fmt.Println("Received message:", string(msg.Body))
 
-		var data CandidateData
+		var data CandidateData // data variable type of CandidateData
 		err := json.Unmarshal(msg.Body, &data)
 		if err != nil {
 			log.Println("Error unmarshaling message:", err)
@@ -71,6 +121,12 @@ func consumer() {
 		fmt.Println("Candidate Votes:", data.CandidateVotes)
 
 		// Perform further actions based on candidate data
+
+		candidateName := data.CandidateName
+		candidateVotes := data.CandidateVotes
+
+		updateVotes(candidateName, candidateVotes) // updating votes
+
 	}
 }
 
