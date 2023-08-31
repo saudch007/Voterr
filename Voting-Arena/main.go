@@ -131,6 +131,27 @@ func votingHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Candidate name is :", candidate_name)
 	fmt.Println("Candidate vote is :", candidate_votes)
 
+	type Candidate struct {
+		Name  string `json:"name"`
+		Votes int    `json:"votes"`
+	}
+	candidates := []Candidate{
+		{candidate_name, candidate_votes},
+	}
+
+	supabaseURL := os.Getenv("DB_URL")
+	supabaseKEY := os.Getenv("DB_KEY")
+	supabase := supa.CreateClient(supabaseURL, supabaseKEY)
+
+	var results []Candidate
+
+	err = supabase.DB.From("ballettable").Insert(candidates).Execute(&results)
+	if err != nil {
+		log.Fatalf("Error is %s", err)
+	} else {
+		fmt.Println(results)
+	}
+
 	err = sendToVoteService(candidate_name, candidate_votes) // Sending to Vote-Service
 	if err != nil {
 		fmt.Println("Error sending data to Vote-Service", err)

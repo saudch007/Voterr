@@ -19,49 +19,44 @@ type CandidateData struct { // storing values in custom type
 
 func updateVotes(passedName string, passedVote int) {
 
-	type Candidate struct {
-		ID   int    `json:"id"`
-		Name string `json:"name"`
-		Vote int    `json:"votes"`
-		// Add other fields as needed
+	e := godotenv.Load("../.env")
+	if e != nil {
+		log.Fatalf("Error loading .env file: %v", e)
 	}
 
 	supabaseURL := os.Getenv("DB_URL")
 	supabaseKEY := os.Getenv("DB_KEY")
 	supabase := supa.CreateClient(supabaseURL, supabaseKEY)
 
-	// Fetch the existing row based on the name
-	var existingRow Candidate
-
-	fetchResponse := supabase.DB.From("ballettable").
-		Select("*").
-		Eq("name", passedName).
-		Execute(&existingRow)
-
-	if fetchResponse != nil {
-		// Increase the vote attribute in the existing row
-		existingRow.Vote += 1
-		fmt.Println("Vote increased by 1")
-		fmt.Println(existingRow)
-
-		// Update the row in the database
-		updateResponse := supabase.DB.From("ballettable").
-			Update(existingRow).
-			Eq("name", passedName).
-			Execute(nil)
-
-		if updateResponse != nil {
-			log.Println("Msg:", updateResponse)
-			return
-		}
-
-		if updateResponse.Error() == "200" {
-			fmt.Println("Vote increased successfully.")
-		} else {
-			fmt.Println("Vote increase failed.")
-		}
+	var results []map[string]interface{}
+	query := supabase.DB.From("ballettable").Select("*").Eq("name", passedName)
+	if err := query.Execute(&results); err != nil {
+		fmt.Println("Error in querying row := ", err)
+		return
 	} else {
-		fmt.Println("Row not found.")
+		fmt.Println("Success!")
+		fmt.Println(results)
+	}
+	////////// Till now we have found the specific candidate
+	//// Now update its votes based on passedVote
+	passedVote += 1
+	type newCandidateVal struct {
+		Name string `json:"name"`
+		Vote int    `json:"votes"`
+	}
+	updateRow := newCandidateVal{
+		Name: passedName,
+		Vote: passedVote,
+	}
+
+	var newResults []map[string]interface{}
+
+	updateVotes := supabase.DB.From("ballettable").Update(updateRow).Eq("name", passedName)
+	if data := updateVotes.Execute(&newResults); data != nil {
+		fmt.Println("Error in update query := ", data)
+	} else {
+		fmt.Println("Success in update query!")
+		fmt.Println(newResults)
 	}
 }
 
